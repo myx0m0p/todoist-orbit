@@ -52,7 +52,7 @@ python3 "$SKILL_DIR/scripts/todoist_orbit.py" --pretty projects add "Client Ops"
 python3 "$SKILL_DIR/scripts/todoist_orbit.py" --pretty projects archive <project_id>
 ```
 
-`projects search` is a client-side name filter over `GET /projects` because Todoist REST does not expose a dedicated project search endpoint.
+`projects search` now calls Todoist's server-side `GET /api/v1/projects/search` endpoint. Keep `--exact` when you want an exact-name match on top of the API-backed search results.
 
 ### Sections
 
@@ -75,7 +75,7 @@ python3 "$SKILL_DIR/scripts/todoist_orbit.py" --pretty labels get <label_id>
 python3 "$SKILL_DIR/scripts/todoist_orbit.py" --pretty labels delete <label_id>
 ```
 
-`labels search` is also client-side because the REST API exposes label listing/get/write operations, not a server-side search endpoint.
+`labels search` now calls Todoist's server-side `GET /api/v1/labels/search` endpoint. Keep `--exact` when you want an exact-name match on top of the API-backed search results.
 
 ### Attachments and comments
 
@@ -113,7 +113,7 @@ Use `resolve` when you want project and section lookups plus a task query in one
 
 - Prefer IDs once resolved; names are ambiguous.
 - The CLI is REST-only; there is no Sync API fallback.
-- `projects search` and `labels search` are local filters over list endpoints because Todoist REST does not expose dedicated search endpoints for them.
+- `projects search` and `labels search` use Todoist's `GET /api/v1/projects/search` and `GET /api/v1/labels/search` endpoints. `--exact` remains as a compatibility flag that narrows the API results to an exact name match.
 - `sections move` is intentionally unsupported because Todoist REST does not expose a section move operation. The command remains available only to fail clearly for callers that already invoke it.
 - `comments add --attachment` uploads the file and passes the returned attachment object into the comment create request.
 - Prefer short task fields and long comments: task content/description are easier to scan when they stay concise, while comments work better for running logs and multi-line notes.

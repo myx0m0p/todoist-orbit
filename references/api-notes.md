@@ -30,7 +30,8 @@ Reasons:
 - `POST /api/v1/projects/{id}/archive`
 - `POST /api/v1/projects/{id}/unarchive`
 - `DELETE /api/v1/projects/{id}`
-- project search: no dedicated REST endpoint; the CLI implements `projects search` by filtering `GET /projects` client-side
+- `GET /api/v1/projects/search`
+- project search: `projects search` now calls the dedicated Todoist project search endpoint; `--exact` still performs a local exact-name pass over the returned results for compatibility
 
 ### Sections
 - `GET /api/v1/sections`
@@ -48,7 +49,8 @@ Reasons:
 - `POST /api/v1/labels`
 - `POST /api/v1/labels/{id}`
 - `DELETE /api/v1/labels/{id}`
-- label search: no dedicated REST endpoint; the CLI implements `labels search` by filtering `GET /labels` client-side
+- `GET /api/v1/labels/search`
+- label search: `labels search` now calls the dedicated Todoist label search endpoint; `--exact` still performs a local exact-name pass over the returned results for compatibility
 
 ### Comments and attachments
 - `GET /api/v1/comments`
@@ -71,7 +73,7 @@ The comment payload uses the attachment object returned by `POST /uploads`.
 - Errors are emitted as JSON on stderr
 - `--pretty` enables indentation
 - `resolve` fans out multiple requests concurrently with `asyncio.gather`
-- `projects search` and `labels search` are substring filters by default; add `--exact` for exact-name matches
+- `projects search` and `labels search` call Todoist's search endpoints; add `--exact` to keep only exact-name matches from the API results
 - Use `comments add` for short inline text only
 - Use `comments add-file` or `comments add-stdin` for long, structured, or multi-line comment bodies
 
@@ -81,6 +83,6 @@ The comment payload uses the attachment object returned by `POST /uploads`.
 - Upload/comment features may fail if the account or workspace plan does not allow them
 - Prefer explicit IDs for write operations
 - Section moves are not available through Todoist REST, so cross-project section reorganization must be done outside this CLI
-- Search commands are not server-side indexed Todoist searches; they fetch the relevant collection first and then filter locally
+- Project and label search commands are server-backed Todoist searches; `--exact` adds a local exact-name filter after the API call
 - Keep task content and descriptions short; use comments for logs, transcripts, templates, or other structured notes
 - Todoist comments are plain text, so use file/stdin-based comment creation when exact multi-line formatting matters

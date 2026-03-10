@@ -194,10 +194,10 @@ async def list_projects(_args):
 
 
 async def search_projects(args):
-    projects = await request_json("/projects")
+    projects = await request_json("/projects/search", params={"query": args.name})
     items = collection_items(projects)
-    if args.name:
-        items = filter_by_name(items, args.name, exact=args.exact)
+    if args.exact:
+        items = filter_by_name(items, args.name, exact=True)
     return items
 
 
@@ -283,10 +283,10 @@ async def list_labels(_args):
 
 
 async def search_labels(args):
-    labels = await request_json("/labels")
+    labels = await request_json("/labels/search", params={"query": args.name})
     items = collection_items(labels)
-    if args.name:
-        items = filter_by_name(items, args.name, exact=args.exact)
+    if args.exact:
+        items = filter_by_name(items, args.name, exact=True)
     return items
 
 
@@ -504,7 +504,11 @@ def configure_parser() -> argparse.ArgumentParser:
     sp = ps.add_parser("list")
     sp.set_defaults(func=list_projects)
 
-    sp = ps.add_parser("search", help="Client-side project name search over /projects")
+    sp = ps.add_parser(
+        "search",
+        help="Search projects via Todoist API /projects/search",
+        description="Search projects via Todoist API /projects/search",
+    )
     sp.add_argument("name")
     sp.add_argument("--exact", action="store_true")
     sp.set_defaults(func=search_projects)
@@ -594,7 +598,11 @@ def configure_parser() -> argparse.ArgumentParser:
     sp = ps.add_parser("list")
     sp.set_defaults(func=list_labels)
 
-    sp = ps.add_parser("search", help="Client-side label name search over /labels")
+    sp = ps.add_parser(
+        "search",
+        help="Search labels via Todoist API /labels/search",
+        description="Search labels via Todoist API /labels/search",
+    )
     sp.add_argument("name")
     sp.add_argument("--exact", action="store_true")
     sp.set_defaults(func=search_labels)
