@@ -41,6 +41,8 @@ python3 "$SKILL_DIR/scripts/todoist_orbit.py" --pretty tasks move <task_id> --pr
 python3 "$SKILL_DIR/scripts/todoist_orbit.py" --pretty tasks close <task_id>
 ```
 
+Keep `tasks add ... "content"` and `--description` short. Use them for the task title and a brief summary only. If you need multi-line notes, logs, checklists, transcripts, or structured updates, put that material in comments instead of stretching task fields.
+
 ### Projects
 
 ```bash
@@ -82,9 +84,22 @@ Upload the file first or let `comments add` do it implicitly.
 ```bash
 python3 "$SKILL_DIR/scripts/todoist_orbit.py" --pretty uploads add ./voice-note.m4a
 python3 "$SKILL_DIR/scripts/todoist_orbit.py" --pretty comments add --task-id <task_id> "Voice memo attached" --attachment ./voice-note.m4a
+python3 "$SKILL_DIR/scripts/todoist_orbit.py" --pretty comments add-file --task-id <task_id> ./daily-log.txt
+python3 "$SKILL_DIR/scripts/todoist_orbit.py" --pretty comments add-stdin --task-id <task_id> <<'EOF'
+Daily log
+- investigated API regression
+- deployed rollback
+- monitoring error budget
+EOF
 ```
 
 Todoist stores attachments on comments, not directly on the task object. For task attachments, add a task comment with `--attachment`.
+
+Formatting and safety guidance:
+- Todoist comments are plain text. Treat Markdown rendering, indentation, and pasted shell snippets as best-effort rather than rich formatting.
+- For anything longer than a short sentence, prefer `comments add-file` or `comments add-stdin` over inline shell arguments.
+- Avoid shell interpolation for comment bodies. Commands like `comments add --task-id ... "$NOTE"` are fragile and can introduce accidental characters such as a stray leading `$`.
+- Use `add-file` for saved notes and `add-stdin` for here-docs or generated output. Both routes preserve multi-line text without shell-quoting games.
 
 ### Concurrent resolution
 
@@ -101,4 +116,5 @@ Use `resolve` when you want project and section lookups plus a task query in one
 - `projects search` and `labels search` are local filters over list endpoints because Todoist REST does not expose dedicated search endpoints for them.
 - `sections move` is intentionally unsupported because Todoist REST does not expose a section move operation. The command remains available only to fail clearly for callers that already invoke it.
 - `comments add --attachment` uploads the file and passes the returned attachment object into the comment create request.
+- Prefer short task fields and long comments: task content/description are easier to scan when they stay concise, while comments work better for running logs and multi-line notes.
 - Read `references/api-notes.md` only when you need endpoint-specific details or attachment behavior.

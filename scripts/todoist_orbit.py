@@ -20,6 +20,12 @@ class TodoistError(Exception):
     pass
 
 
+def non_empty_text(value: str, *, source: str) -> str:
+    if not value:
+        raise TodoistError(f"Comment content from {source} is empty")
+    return value
+
+
 def env_token() -> str:
     token = os.environ.get("TODOIST_API_KEY")
     if not token:
@@ -318,12 +324,45 @@ async def list_comments(args):
     return await request_json("/comments", params=params)
 
 
-async def add_comment(args):
-    payload = {"content": args.content}
+def comment_target_payload(args) -> dict:
+    payload: Dict[str, Any] = {}
     if args.task_id:
         payload["task_id"] = args.task_id
     if args.project_id:
         payload["project_id"] = args.project_id
+    return payload
+
+
+def read_comment_content_from_file(path_str: str) -> str:
+    path = Path(path_str)
+    if not path.is_file():
+        raise TodoistError(f"File not found: {path}")
+    try:
+        return non_empty_text(path.read_text(encoding="utf-8"), source=str(path))
+    except UnicodeDecodeError as exc:
+        raise TodoistError(f"Comment content file must be valid UTF-8: {path}") from exc
+
+
+def read_comment_content_from_stdin() -> str:
+    return non_empty_text(sys.stdin.read(), source="stdin")
+
+
+async def add_comment(args):
+    payload = {"content": non_empty_text(args.content, source="command line"), **comment_target_payload(args)}
+    if args.attachment:
+        payload["attachment"] = await upload_file(Path(args.attachment))
+    return await request_json("/comments", method="POST", data=payload)
+
+
+async def add_comment_from_file(args):
+    payload = {"content": read_comment_content_from_file(args.file), **comment_target_payload(args)}
+    if args.attachment:
+        payload["attachment"] = await upload_file(Path(args.attachment))
+    return await request_json("/comments", method="POST", data=payload)
+
+
+async def add_comment_from_stdin(args):
+    payload = {"content": read_comment_content_from_stdin(), **comment_target_payload(args)}
     if args.attachment:
         payload["attachment"] = await upload_file(Path(args.attachment))
     return await request_json("/comments", method="POST", data=payload)
@@ -583,7 +622,14 @@ def configure_parser() -> argparse.ArgumentParser:
     sp.add_argument("label_id")
     sp.set_defaults(func=delete_label)
 
-    p = sub.add_parser("comments", help="Comment operations")
+    p = sub.add_parser(
+        "comments",
+        help="Comment operations",
+        description=(
+            "Use comments for long notes, logs, or structured text. "
+            "Prefer add-file or add-stdin for multi-line content to avoid shell quoting issues."
+        ),
+    )
     ps = p.add_subparsers(dest="action", required=True)
 
     sp = ps.add_parser("list")
@@ -591,13 +637,36 @@ def configure_parser() -> argparse.ArgumentParser:
     sp.add_argument("--project-id")
     sp.set_defaults(func=list_comments)
 
-    sp = ps.add_parser("add")
+    sp = ps.add_parser("add", help="Add a short inline comment")
     target = sp.add_mutually_exclusive_group(required=True)
     target.add_argument("--task-id")
     target.add_argument("--project-id")
     sp.add_argument("content")
     sp.add_argument("--attachment")
     sp.set_defaults(func=add_comment)
+
+    sp = ps.add_parser(
+        "add-file",
+        help="Add a comment from a UTF-8 text file",
+        description="Read comment content from a UTF-8 file. Use this for long or structured notes.",
+    )
+    target = sp.add_mutually_exclusive_group(required=True)
+    target.add_argument("--task-id")
+    target.add_argument("--project-id")
+    sp.add_argument("file", help="Path to a UTF-8 text file containing the comment body")
+    sp.add_argument("--attachment")
+    sp.set_defaults(func=add_comment_from_file)
+
+    sp = ps.add_parser(
+        "add-stdin",
+        help="Add a comment by reading UTF-8 text from stdin",
+        description="Read comment content from stdin. Use this for here-docs, pipes, or generated text.",
+    )
+    target = sp.add_mutually_exclusive_group(required=True)
+    target.add_argument("--task-id")
+    target.add_argument("--project-id")
+    sp.add_argument("--attachment")
+    sp.set_defaults(func=add_comment_from_stdin)
 
     p = sub.add_parser("uploads", help="Upload files for comment attachments")
     ps = p.add_subparsers(dest="action", required=True)

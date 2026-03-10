@@ -72,6 +72,8 @@ The comment payload uses the attachment object returned by `POST /uploads`.
 - `--pretty` enables indentation
 - `resolve` fans out multiple requests concurrently with `asyncio.gather`
 - `projects search` and `labels search` are substring filters by default; add `--exact` for exact-name matches
+- Use `comments add` for short inline text only
+- Use `comments add-file` or `comments add-stdin` for long, structured, or multi-line comment bodies
 
 ## Caution
 
@@ -80,3 +82,5 @@ The comment payload uses the attachment object returned by `POST /uploads`.
 - Prefer explicit IDs for write operations
 - Section moves are not available through Todoist REST, so cross-project section reorganization must be done outside this CLI
 - Search commands are not server-side indexed Todoist searches; they fetch the relevant collection first and then filter locally
+- Keep task content and descriptions short; use comments for logs, transcripts, templates, or other structured notes
+- Todoist comments are plain text, so use file/stdin-based comment creation when exact multi-line formatting matters
