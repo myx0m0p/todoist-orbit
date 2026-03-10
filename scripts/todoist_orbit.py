@@ -86,6 +86,28 @@ def _format_http_error(e: HTTPError) -> TodoistError:
     return TodoistError(f"HTTP {e.code}: {parsed}")
 
 
+def collection_items(payload: Any) -> list:
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        for key in ("results", "items", "projects", "sections", "labels"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return value
+    return []
+
+
+def filter_by_name(items: list, needle: str, *, field: str = "name", exact: bool = False) -> list:
+    query = needle.lower()
+    matched = []
+    for item in items:
+        value = str(item.get(field, ""))
+        hay = value.lower()
+        if (hay == query) if exact else (query in hay):
+            matched.append(item)
+    return matched
+
+
 async def list_tasks(args):
     params = {
         "filter": args.filter,
@@ -165,6 +187,14 @@ async def list_projects(_args):
     return await request_json("/projects")
 
 
+async def search_projects(args):
+    projects = await request_json("/projects")
+    items = collection_items(projects)
+    if args.name:
+        items = filter_by_name(items, args.name, exact=args.exact)
+    return items
+
+
 async def get_project(args):
     return await request_json(f"/projects/{args.project_id}")
 
@@ -242,6 +272,47 @@ async def delete_section(args):
     return {"ok": True, "deleted": args.section_id}
 
 
+async def list_labels(_args):
+    return await request_json("/labels")
+
+
+async def search_labels(args):
+    labels = await request_json("/labels")
+    items = collection_items(labels)
+    if args.name:
+        items = filter_by_name(items, args.name, exact=args.exact)
+    return items
+
+
+async def get_label(args):
+    return await request_json(f"/labels/{args.label_id}")
+
+
+async def add_label(args):
+    payload = {
+        "name": args.name,
+        "color": args.color,
+        "order": args.order,
+        "is_favorite": args.favorite,
+    }
+    return await request_json("/labels", method="POST", data={k: v for k, v in payload.items() if v is not None})
+
+
+async def update_label(args):
+    payload = {
+        "name": args.name,
+        "color": args.color,
+        "order": args.order,
+        "is_favorite": args.favorite,
+    }
+    return await request_json(f"/labels/{args.label_id}", method="POST", data={k: v for k, v in payload.items() if v is not None})
+
+
+async def delete_label(args):
+    await request_json(f"/labels/{args.label_id}", method="DELETE")
+    return {"ok": True, "deleted": args.label_id}
+
+
 async def list_comments(args):
     params = {"task_id": args.task_id, "project_id": args.project_id}
     return await request_json("/comments", params=params)
@@ -294,17 +365,6 @@ def build_multipart(boundary: str, filename: str, mime: str, payload: bytes) -> 
     return b"".join(parts)
 
 
-def collection_items(payload: Any) -> list:
-    if isinstance(payload, list):
-        return payload
-    if isinstance(payload, dict):
-        for key in ("results", "items", "projects", "sections"):
-            value = payload.get(key)
-            if isinstance(value, list):
-                return value
-    return []
-
-
 async def resolve(args):
     coros = {}
     if args.project:
@@ -321,11 +381,11 @@ async def resolve(args):
         else:
             out[key] = value
     if args.project:
-        name = args.project.lower()
-        out["project_match"] = next((p for p in collection_items(out.get("projects")) if p.get("name", "").lower() == name), None)
+        matches = filter_by_name(collection_items(out.get("projects")), args.project, exact=True)
+        out["project_match"] = matches[0] if matches else None
     if args.section:
-        name = args.section.lower()
-        out["section_match"] = next((s for s in collection_items(out.get("sections")) if s.get("name", "").lower() == name), None)
+        matches = filter_by_name(collection_items(out.get("sections")), args.section, exact=True)
+        out["section_match"] = matches[0] if matches else None
     return out
 
 
@@ -405,6 +465,11 @@ def configure_parser() -> argparse.ArgumentParser:
     sp = ps.add_parser("list")
     sp.set_defaults(func=list_projects)
 
+    sp = ps.add_parser("search", help="Client-side project name search over /projects")
+    sp.add_argument("name")
+    sp.add_argument("--exact", action="store_true")
+    sp.set_defaults(func=search_projects)
+
     sp = ps.add_parser("get")
     sp.add_argument("project_id")
     sp.set_defaults(func=get_project)
@@ -483,6 +548,40 @@ def configure_parser() -> argparse.ArgumentParser:
     sp = ps.add_parser("delete")
     sp.add_argument("section_id")
     sp.set_defaults(func=delete_section)
+
+    p = sub.add_parser("labels", help="Label operations")
+    ps = p.add_subparsers(dest="action", required=True)
+
+    sp = ps.add_parser("list")
+    sp.set_defaults(func=list_labels)
+
+    sp = ps.add_parser("search", help="Client-side label name search over /labels")
+    sp.add_argument("name")
+    sp.add_argument("--exact", action="store_true")
+    sp.set_defaults(func=search_labels)
+
+    sp = ps.add_parser("get")
+    sp.add_argument("label_id")
+    sp.set_defaults(func=get_label)
+
+    sp = ps.add_parser("add")
+    sp.add_argument("name")
+    sp.add_argument("--color")
+    sp.add_argument("--order", type=int)
+    sp.add_argument("--favorite", action="store_true", default=None)
+    sp.set_defaults(func=add_label)
+
+    sp = ps.add_parser("update")
+    sp.add_argument("label_id")
+    sp.add_argument("--name")
+    sp.add_argument("--color")
+    sp.add_argument("--order", type=int)
+    sp.add_argument("--favorite", action="store_true", default=None)
+    sp.set_defaults(func=update_label)
+
+    sp = ps.add_parser("delete")
+    sp.add_argument("label_id")
+    sp.set_defaults(func=delete_label)
 
     p = sub.add_parser("comments", help="Comment operations")
     ps = p.add_subparsers(dest="action", required=True)
