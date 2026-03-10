@@ -1,7 +1,7 @@
 ---
 name: todoist-orbit
 description: "Operate Todoist through a Python CLI backed by the Todoist REST API. Use when the task requires deterministic Todoist automation instead of chatty natural-language parsing: listing, creating, updating, moving, completing, deleting, or resolving tasks; creating/updating/archiving projects; creating/updating/archiving sections; uploading files and attaching them to task/project comments; or concurrent Todoist lookups. Prefer this skill when Todoist, projects, sections, attachments, or task comments are involved."
-metadata: { "openclaw": { "requires": { "bins": ["python3"] }, "env": ["TODOIST_API_KEY"] } }
+metadata: { "openclaw": { "primaryEnv": "TODOIST_API_KEY", "requires": { "bins": ["python3"], "env": ["TODOIST_API_KEY"] } } }
 ---
 
 # Todoist Orbit
